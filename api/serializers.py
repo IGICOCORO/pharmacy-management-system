@@ -2,14 +2,14 @@ from .models import *
 from rest_framework import serializers
 
 
-class ClientSerializer(serializers.ModelSerializer):
+class StaffSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
 
     def get_name(self, obj):
         return f"{obj.user.first_name} {obj.user.last_name}"
 
     class Meta:
-        model = Client
+        model = Staff
         fields = "__all__"
 
 
@@ -37,12 +37,19 @@ class StockSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class VenteSerializer(serializers.ModelSerializer):
-    str_montant = serializers.SerializerMethodField()
-
-    def get_str_montant(self, obj):
-        return f"+{obj.montant}" if obj.montant > 0 else f"{obj.montant}"
-
+class DetailStockSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Vente
+        model = DetailStock
+        fields = "__all__"
+
+
+class DetailCommandeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DetailCommande
+        fields = "__all__"
+
+
+class PaiementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Paiement
         fields = "__all__"

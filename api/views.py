@@ -3,18 +3,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
-#from rest_framework_simplejwt.authentication import JWTAuthentication
-
 from .models import *
 from .serializers import *
 
 
-class ClientViewset(viewsets.ModelViewSet):
+class StaffViewset(viewsets.ModelViewSet):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
-    queryset = Client.objects.all()
-    serializer_class = ClientSerializer
+    queryset = Staff.objects.all()
+    serializer_class = StaffSerializer
 
 
 class ProduitViewset(viewsets.ModelViewSet):
@@ -38,6 +35,13 @@ class CommandeViewset(viewsets.ModelViewSet):
     serializer_class = CommandeSerializer
 
 
+class DetailCommandeViewset(viewsets.ModelViewSet):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+    queryset = DetailCommande.objects.all()
+    serializer_class = DetailCommandeSerializer
+
+
 class StockViewset(viewsets.ModelViewSet):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
@@ -45,14 +49,21 @@ class StockViewset(viewsets.ModelViewSet):
     serializer_class = StockSerializer
 
 
-class VenteViewset(viewsets.ModelViewSet):
+class DetailStockViewset(viewsets.ModelViewSet):
     authentication_classes = [SessionAuthentication]
     permission_classes = [IsAuthenticated]
-    queryset = Vente.objects.all()
-    serializer_class = VenteSerializer
+    queryset = DetailStock.objects.all()
+    serializer_class = DetailStockSerializer
 
-    @action(["GET"], False, r"myaccount", "myaccount")
-    def venteInfo(self, request):
-        queryset = Vente.objects.get(client=request.user.client)
-        serializer = VenteSerializer(queryset, many=False)
+
+class PaiementViewset(viewsets.ModelViewSet):
+    authentication_classes = [SessionAuthentication]
+    permission_classes = [IsAuthenticated]
+    queryset = Paiement.objects.all()
+    serializer_class = PaiementSerializer
+
+    @action(["GET"], False)
+    def PaiementInfo(self, request):
+        queryset = Paiement.objects.get(client=request.user.client)
+        serializer = PaiementSerializer(queryset, many=False)
         return Response(serializer.data)

@@ -3,12 +3,14 @@ from rest_framework import routers
 from .views import *
 
 router = routers.DefaultRouter()
-router.register("client", ClientViewset)
+router.register("staff", StaffViewset)
 router.register("produit", ProduitViewset)
 router.register("fournisseur", FournisseurViewset)
 router.register("Commande", CommandeViewset)
-router.register("stock", StockViewset)
-router.register("Vente", VenteViewset)
+router.register("Commande", CommandeViewset)
+router.register("Detail_stock", DetailStockViewset)
+router.register("Detail_stock", DetailStockViewset)
+router.register("Paiement", PaiementViewset)
 urlpatterns = [
     path("", include(router.urls)),
 ]

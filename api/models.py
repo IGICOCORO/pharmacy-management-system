@@ -1,60 +1,145 @@
 from django.db import models
+from django.db.models import Sum
 from django.utils import timezone
 from django.contrib.auth.models import User
-# Create your models here.
+from datetime import datetime, timedelta, date
 
 
 class Staff(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    avatar = models.CharField(max_length=50)
+    avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
+    tel = models.CharField(max_length=20)
 
     def __str__(self):
-        return f'{self.user.first_name} {self.user.last_name}'
 
-
-class Fournisseur(models.Model):
-    nom = models.CharField(max_length=50)
-    telephone = models.CharField(max_length=20)
-    email = models.EmailField(blank=True)
-    adresse = models.CharField(max_length=200)
-
-    class Meta:
-        ordering = ["nom", ]
-
-    def __str__(self):
-        return f'{self.nom} {self.telephone} {self.email} {self.adresse}'
+        return f"{self.user.username}"
 
 
 class Produit(models.Model):
-    reference = models.CharField(unique=True, max_length=50)
-    designation = models.CharField(max_length=50)
-    prixU = models.DecimalField(max_digits=8, decimal_places=2)
-    quantite = models.IntegerField()
-    fournisseur = models.ForeignKey(Fournisseur, on_delete=models.CASCADE)
+    nom = models.CharField(max_length=50, unique=True)
+    rapport = models.FloatField(default=1)
+    prix = models.PositiveIntegerField()
+    disponible = models.BooleanField(default=True)
+    quantite = models.FloatField(default=0, editable=False)
 
     def __str__(self):
-        return f'{self.reference} {self.designation} {self.quantite} {self.fournisseur}'
-
-
-class Client(models.Model):
-    nom = models.CharField(max_length=50)
-    prenom = models.CharField(max_length=50)
-    telephone = models.CharField(max_length=50)
-    adresse = models.CharField(max_length=50)
-    produits = models.ManyToManyField(Produit, through='Achat', blank=True)
-
-    def __str__(self):
-        return f'{self.nom} by {self.prenom}'
-
-
-class Achat(models.Model):
-    date_Achat = models.DateField(default=timezone.now)
-    quantite = models.IntegerField()
-    client = models.ForeignKey(Client, on_delete=models.CASCADE)
-    produit = models.ForeignKey(Produit, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return f'{self.date_Achat} by {self.quantite}'
+        return f'{self.nom} {self.disponible}'
 
     class Meta:
-        ordering = ['date_Achat', ]
+        ordering = ["nom", "prix"]
+
+
+class DetailStock(models.Model):
+    stock = models.ForeignKey("Stock", on_delete=models.CASCADE)
+    quantite = models.FloatField()
+    date = models.DateTimeField(blank=True, default=timezone.now)
+    motif = models.CharField(max_length=50, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        stock = self.stock
+        stock.quantite_actuelle -= abs(self.quantite)
+        stock.save()
+        super(DetailStock, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.stock.produit} du {self.stock.date} -\
+			{self.quantite} {self.stock.produit.unite}"
+
+
+class Stock(models.Model):
+    produit = models.ForeignKey(Produit, on_delete=models.CASCADE)
+    quantite_initiale = models.FloatField(verbose_name='quantité initial')
+    quantite_actuelle = models.FloatField(
+        editable=False, verbose_name='quantité actuelle')
+    date = models.DateField(blank=True, default=timezone.now)
+    expiration = models.PositiveIntegerField(
+        default=5, null=True, blank=True, verbose_name="délais de validité(en jours)")
+    expiration_date = models.DateField(editable=False, null=True)
+    Staff = models.ForeignKey("Staff", null=True, on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return f"{self.produit} {self.quantite_actuelle} {self.produit.unite} du {self.date}"
+
+    def save(self, *args, **kwargs):
+        if self.quantite_actuelle == None:
+            self.quantite_actuelle = self.quantite_initiale
+        if self.expiration:
+            self.expiration_date = self.date+timedelta(days=self.expiration)
+        super(Stock, self).save(*args, **kwargs)
+        self.calculateProxy()
+
+    def calculateProxy(self):
+        somme = Stock.objects.filter(produit=self.produit,
+                                     quantite_actuelle__gt=0)\
+            .aggregate(somme=Sum('quantite_actuelle'))
+        self.produit.quantite = somme['somme']
+        self.produit.save()
+
+    def somme(self):
+        return self.quantite_initiale*self.produit.prix
+
+    class Meta:
+        ordering = ["produit"]
+
+
+class Fournisseur(models.Model):
+    nom = models.CharField(verbose_name='nom et prenom', max_length=50)
+    adresse = models.CharField(max_length=60, null=True)
+    tel = models.CharField(
+        max_length=40, verbose_name='numero de télephone', null=True)
+
+    def __str__(self):
+        return f"{self.nom}"
+
+
+class DetailCommande(models.Model):
+    commande = models.ForeignKey(
+        "Commande", null=True, on_delete=models.CASCADE, related_name='details')
+    quantite = models.PositiveIntegerField(default=1)
+    somme = models.PositiveIntegerField(
+        editable=False, blank=True, verbose_name='à payer')
+    date = models.DateTimeField(default=timezone.now)
+
+    def save(self, *args, **kwargs):
+        self.somme = self.produit.prix()*self.quantite
+        super(DetailCommande, self).save(*args, **kwargs)
+        self.updateCommande()
+
+    class Meta:
+        ordering = ['date']
+
+    def __str__(self):
+        return f"{self.produit}"
+
+    def updateCommande(self):
+        commande = self.commande
+        commande.a_payer += self.somme
+        commande.save()
+
+
+class Commande(models.Model):
+    tel = models.CharField(max_length=20, blank=True, default=0)
+    date = models.DateField(blank=True, default=timezone.now)
+    a_payer = models.FloatField(default=0, blank=True)
+    payee = models.FloatField(default=0, blank=True)
+    reste = models.FloatField(default=0, blank=True)
+
+    def save(self, *args, **kwargs):
+        self.reste = self.a_payer-self.payee
+        super(Commande, self).save(*args, **kwargs)
+
+
+class Paiement(models.Model):
+    commande = models.ForeignKey(
+        "Commande", null=True, on_delete=models.SET_NULL)
+    somme = models.PositiveIntegerField(verbose_name='somme payée', default=0)
+    date = models.DateField(blank=True, default=timezone.now)
+
+    def save(self, *args, **kwargs):
+        commande = self.commande
+        super(Paiement, self).save(*args, **kwargs)
+        paiements = Paiement.objects.filter(
+            commande=commande).aggregate(Sum("somme"))["somme__sum"]
+        commande.payee += self.somme
+        commande.reste = commande.a_payer-paiements
+        commande.save()
