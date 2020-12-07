@@ -1,43 +1,60 @@
 from django.db import models
+from django.utils import timezone
 from django.contrib.auth.models import User
-
 # Create your models here.
 
 
-class User(models.Model):
+class Staff(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    username = models.CharField(max_length=30)
-    email = models.EmailField()
+    avatar = models.CharField(max_length=50)
 
     def __str__(self):
-        return self.username
+        return f'{self.user.first_name} {self.user.last_name}'
 
 
-class Medecines(models.Model):
-    name = models.CharField(max_length=30)
-    description = models.CharField(max_length=30)
+class Fournisseur(models.Model):
+    nom = models.CharField(max_length=50)
+    telephone = models.CharField(max_length=20)
+    email = models.EmailField(blank=True)
+    adresse = models.CharField(max_length=200)
 
-    def __str__(self):
-        return self.name
-
-
-class Inventory(models.Model):
-    number = models.PositiveIntegerField()
-    description = models.CharField(max_length=20)
-    items = models.CharField(max_length=50)
+    class Meta:
+        ordering = ["nom", ]
 
     def __str__(self):
-        return f'{self.number},{self.description}'
+        return f'{self.nom} {self.telephone} {self.email} {self.adresse}'
 
 
-class Stock(models.Model):
-    products = models.CharField(max_length=50)
-    description = models.TextField(max_length=30)
+class Produit(models.Model):
+    reference = models.CharField(unique=True, max_length=50)
+    designation = models.CharField(max_length=50)
+    prixU = models.DecimalField(max_digits=8, decimal_places=2)
+    quantite = models.IntegerField()
+    fournisseur = models.ForeignKey(Fournisseur, on_delete=models.CASCADE)
 
     def __str__(self):
-        return f'{self.products},{self.description}'
+        return f'{self.reference} {self.designation} {self.quantite} {self.fournisseur}'
 
 
-class Sells(models.Model):
-    name = models.CharField(max_length=30)
-    description = models.CharField(max_length=20)
+class Client(models.Model):
+    nom = models.CharField(max_length=50)
+    prenom = models.CharField(max_length=50)
+    telephone = models.CharField(max_length=50)
+    adresse = models.CharField(max_length=50)
+    produits = models.ManyToManyField(Produit, through='Achat', blank=True)
+
+    def __str__(self):
+        return f'{self.nom} by {self.prenom}'
+
+
+class Achat(models.Model):
+    date_Achat = models.DateField(default=timezone.now)
+    quantite = models.IntegerField()
+    client = models.ForeignKey(Client, on_delete=models.CASCADE)
+    produit = models.ForeignKey(Produit, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.date_Achat} by {self.quantite}'
+
+    class Meta:
+        ordering = ['date_Achat', ]
