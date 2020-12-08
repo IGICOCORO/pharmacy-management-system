@@ -17,7 +17,6 @@ class Staff(models.Model):
 
 class Produit(models.Model):
     nom = models.CharField(max_length=50, unique=True)
-    rapport = models.FloatField(default=1)
     prix = models.PositiveIntegerField()
     disponible = models.BooleanField(default=True)
     quantite = models.FloatField(default=0, editable=False)
@@ -47,13 +46,14 @@ class DetailStock(models.Model):
 
 
 class Stock(models.Model):
-    produit = models.ForeignKey(Produit, on_delete=models.CASCADE)
-    quantite_initiale = models.FloatField(verbose_name='quantité initial')
+    produit = models.ForeignKey(
+        Produit, default=None, on_delete=models.CASCADE)
+    quantite_initiale = models.FloatField(
+        default=None, verbose_name='quantité initial')
     quantite_actuelle = models.FloatField(
-        editable=False, verbose_name='quantité actuelle')
+        editable=False, default=None, verbose_name='quantité actuelle')
     date = models.DateField(blank=True, default=timezone.now)
-    expiration = models.PositiveIntegerField(
-        default=5, null=True, blank=True, verbose_name="délais de validité(en jours)")
+    expiration = models.PositiveIntegerField(default=5, null=True, blank=True)
     expiration_date = models.DateField(editable=False, null=True)
     Staff = models.ForeignKey("Staff", null=True, on_delete=models.SET_NULL)
 
@@ -103,18 +103,13 @@ class DetailCommande(models.Model):
     def save(self, *args, **kwargs):
         self.somme = self.produit.prix()*self.quantite
         super(DetailCommande, self).save(*args, **kwargs)
-        self.updateCommande()
+        self.save()
 
     class Meta:
         ordering = ['date']
 
     def __str__(self):
         return f"{self.produit}"
-
-    def updateCommande(self):
-        commande = self.commande
-        commande.a_payer += self.somme
-        commande.save()
 
 
 class Commande(models.Model):
@@ -130,16 +125,16 @@ class Commande(models.Model):
 
 
 class Paiement(models.Model):
-    commande = models.ForeignKey(
-        "Commande", null=True, on_delete=models.SET_NULL)
+    produit = models.ForeignKey(
+        "Produit", null=True, on_delete=models.SET_NULL)
     somme = models.PositiveIntegerField(verbose_name='somme payée', default=0)
     date = models.DateField(blank=True, default=timezone.now)
 
     def save(self, *args, **kwargs):
-        commande = self.commande
+        produit = self.produit
         super(Paiement, self).save(*args, **kwargs)
         paiements = Paiement.objects.filter(
-            commande=commande).aggregate(Sum("somme"))["somme__sum"]
-        commande.payee += self.somme
-        commande.reste = commande.a_payer-paiements
-        commande.save()
+            produit=produit).aggregate(Sum("somme"))["somme__sum"]
+        produit.payee += self.somme
+        commande.reste = produit.a_payer-paiements
+        produit.save()
