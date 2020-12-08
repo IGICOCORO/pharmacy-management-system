@@ -1,0 +1,8 @@
+*.pyc
+*.jpg
+*.png
+*.vscode
+
+db.sqlite3
+
+**/migrations/*
