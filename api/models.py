@@ -21,7 +21,7 @@ class Produit(models.Model):
     prix = models.PositiveIntegerField()
     disponible = models.BooleanField(default=True)
     quantite = models.FloatField(default=0, editable=False)
-    #exp_date = models.DateField(editable=True, null=False)
+    exp_date = models.DateField(editable=True, null=False)
 
     def __str__(self):
         return f'{self.nom} {self.disponible} {self.lot}'
