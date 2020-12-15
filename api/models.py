@@ -16,13 +16,15 @@ class Staff(models.Model):
 
 
 class Produit(models.Model):
+    lot = models.CharField(max_length=30)
     nom = models.CharField(max_length=50, unique=True)
     prix = models.PositiveIntegerField()
     disponible = models.BooleanField(default=True)
     quantite = models.FloatField(default=0, editable=False)
+    #exp_date = models.DateField(editable=True, null=False)
 
     def __str__(self):
-        return f'{self.nom} {self.disponible}'
+        return f'{self.nom} {self.disponible} {self.lot}'
 
     class Meta:
         ordering = ["nom", "prix"]
