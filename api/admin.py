@@ -9,7 +9,7 @@ class StaffAdmin(admin.ModelAdmin):
 
 
 class ProduitAdmin(admin.ModelAdmin):
-    list_display = "nom", "disponible"
+    list_display = "nom", "disponible","lot"
     list_filter = "disponible",
     ordering = "nom",
 

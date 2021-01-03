@@ -17,7 +17,8 @@ class Staff(models.Model):
 
 class Produit(models.Model):
     lot = models.CharField(max_length=30)
-    nom = models.CharField(max_length=50, unique=True)
+    nom_produit = models.CharField(max_length=50, unique=True)
+    nom_generic = models.CharField(max_length=50, unique=True)
     prix = models.PositiveIntegerField()
     disponible = models.BooleanField(default=True)
     quantite = models.FloatField(default=0, editable=False)
@@ -28,24 +29,6 @@ class Produit(models.Model):
 
     class Meta:
         ordering = ["nom", "prix"]
-
-
-class DetailStock(models.Model):
-    stock = models.ForeignKey("Stock", on_delete=models.CASCADE)
-    quantite = models.FloatField()
-    date = models.DateTimeField(blank=True, default=timezone.now)
-    motif = models.CharField(max_length=50, blank=True, null=True)
-
-    def save(self, *args, **kwargs):
-        stock = self.stock
-        stock.quantite_actuelle -= abs(self.quantite)
-        stock.save()
-        super(DetailStock, self).save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.stock.produit} du {self.stock.date} -\
-			{self.quantite} {self.stock.produit.unite}"
-
 
 class Stock(models.Model):
     produit = models.ForeignKey(
@@ -83,6 +66,22 @@ class Stock(models.Model):
     class Meta:
         ordering = ["produit"]
 
+        
+class DetailStock(models.Model):
+    stock = models.ForeignKey("Stock", on_delete=models.CASCADE)
+    quantite = models.FloatField()
+    date = models.DateTimeField(blank=True, default=timezone.now)
+    motif = models.CharField(max_length=50, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        stock = self.stock
+        stock.quantite_actuelle -= abs(self.quantite)
+        stock.save()
+        super(DetailStock, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.stock.produit} du {self.stock.date} -\
+            {self.quantite} {self.stock.produit.unite}"
 
 class Fournisseur(models.Model):
     nom = models.CharField(verbose_name='nom et prenom', max_length=50)
