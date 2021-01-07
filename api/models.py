@@ -25,10 +25,11 @@ class Produit(models.Model):
     exp_date = models.DateField(editable=True, null=False)
 
     def __str__(self):
-        return f'{self.nom} {self.disponible} {self.lot}'
+        return f'{self.nom_produit} {self.disponible} {self.lot}'
 
     class Meta:
-        ordering = ["nom", "prix"]
+        ordering = ["nom_produit", "prix"]
+
 
 class Stock(models.Model):
     produit = models.ForeignKey(
@@ -66,7 +67,7 @@ class Stock(models.Model):
     class Meta:
         ordering = ["produit"]
 
-        
+
 class DetailStock(models.Model):
     stock = models.ForeignKey("Stock", on_delete=models.CASCADE)
     quantite = models.FloatField()
@@ -82,6 +83,7 @@ class DetailStock(models.Model):
     def __str__(self):
         return f"{self.stock.produit} du {self.stock.date} -\
             {self.quantite} {self.stock.produit.unite}"
+
 
 class Fournisseur(models.Model):
     nom = models.CharField(verbose_name='nom et prenom', max_length=50)
