@@ -3,7 +3,6 @@ from rest_framework import routers
 from .views import *
 from . import views
 
-
 router = routers.DefaultRouter()
 router.register("staff", StaffViewset)
 router.register("produit", ProduitViewset)
@@ -14,6 +13,5 @@ router.register("Detail_stock", DetailStockViewset)
 router.register("Detail_stock", DetailStockViewset)
 router.register("Paiement", PaiementViewset)
 urlpatterns = [
-    path("", views.login),
     path("", include(router.urls)),
 ]
