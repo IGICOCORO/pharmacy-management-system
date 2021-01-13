@@ -1,143 +1,178 @@
 from django.db import models
-from django.db.models import Sum
 from django.utils import timezone
 from django.contrib.auth.models import User
+
 from datetime import datetime, timedelta, date
 
 
-class Staff(models.Model):
+class staff(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
-    tel = models.CharField(max_length=20)
-
-    def __str__(self):
-
-        return f"{self.user.username}"
-
-
-class Produit(models.Model):
-    lot = models.CharField(max_length=30)
-    nom_produit = models.CharField(max_length=50, unique=True)
-    nom_generic = models.CharField(max_length=50, unique=True)
-    prix = models.PositiveIntegerField()
-    disponible = models.BooleanField(default=True)
-    quantite = models.FloatField(default=0, editable=False)
-    exp_date = models.DateField(editable=True, null=False)
-
-    def __str__(self):
-        return f'{self.nom_produit} {self.disponible} {self.lot}'
+    tel = models.CharField(max_length=25)
 
     class Meta:
-        ordering = ["nom_produit", "prix"]
-
-
-class Stock(models.Model):
-    produit = models.ForeignKey(
-        Produit, default=None, on_delete=models.CASCADE)
-    quantite_initiale = models.FloatField(
-        default=None, verbose_name='quantité initial')
-    quantite_actuelle = models.FloatField(
-        editable=False, default=None, verbose_name='quantité actuelle')
-    date = models.DateField(blank=True, default=timezone.now)
-    expiration = models.PositiveIntegerField(default=5, null=True, blank=True)
-    expiration_date = models.DateField(editable=False, null=True)
-    Staff = models.ForeignKey("Staff", null=True, on_delete=models.SET_NULL)
+        unique_together = ('tel', 'user')
 
     def __str__(self):
-        return f"{self.produit} {self.quantite_actuelle} {self.produit.unite} du {self.date}"
+        return self.user.username
 
-    def save(self, *args, **kwargs):
-        if self.quantite_actuelle == None:
-            self.quantite_actuelle = self.quantite_initiale
-        if self.expiration:
-            self.expiration_date = self.date+timedelta(days=self.expiration)
-        super(Stock, self).save(*args, **kwargs)
-        self.calculateProxy()
 
-    def calculateProxy(self):
-        somme = Stock.objects.filter(produit=self.produit,
-                                     quantite_actuelle__gt=0)\
-            .aggregate(somme=Sum('quantite_actuelle'))
-        self.produit.quantite = somme['somme']
-        self.produit.save()
-
-    def somme(self):
-        return self.quantite_initiale*self.produit.prix
+class Client(models.Model):
+    nom = models.CharField(max_length=30)
+    tel = models.CharField(max_length=25, unique=True)
 
     class Meta:
-        ordering = ["produit"]
-
-
-class DetailStock(models.Model):
-    stock = models.ForeignKey("Stock", on_delete=models.CASCADE)
-    quantite = models.FloatField()
-    date = models.DateTimeField(blank=True, default=timezone.now)
-    motif = models.CharField(max_length=50, blank=True, null=True)
-
-    def save(self, *args, **kwargs):
-        stock = self.stock
-        stock.quantite_actuelle -= abs(self.quantite)
-        stock.save()
-        super(DetailStock, self).save(*args, **kwargs)
+        unique_together = ('nom', 'tel')
 
     def __str__(self):
-        return f"{self.stock.produit} du {self.stock.date} -\
-            {self.quantite} {self.stock.produit.unite}"
+        return f"{self.nom} {self.tel}"
 
-
-class Fournisseur(models.Model):
-    nom = models.CharField(verbose_name='nom et prenom', max_length=50)
-    adresse = models.CharField(max_length=60, null=True)
-    tel = models.CharField(
-        max_length=40, verbose_name='numero de télephone', null=True)
+class Product(models.Model):
+    nom = models.CharField(max_length=60, unique=True)
+    unite = models.CharField(max_length=60)
+    unite_sortant = models.CharField(max_length=60)
+    rapport = models.FloatField(default=1)
+    quantite = models.FloatField(editable=False, default=0)
+    prix_vente = models.FloatField(default=0)
 
     def __str__(self):
         return f"{self.nom}"
 
-
-class DetailCommande(models.Model):
-    commande = models.ForeignKey(
-        "Commande", null=True, on_delete=models.CASCADE, related_name='details')
-    quantite = models.PositiveIntegerField(default=1)
-    somme = models.PositiveIntegerField(
-        editable=False, blank=True, verbose_name='à payer')
-    date = models.DateTimeField(default=timezone.now)
-
-    def save(self, *args, **kwargs):
-        self.somme = self.produit.prix()*self.quantite
-        super(DetailCommande, self).save(*args, **kwargs)
-        self.save()
-
     class Meta:
-        ordering = ['date']
+        ordering = "nom",
+
+class Purchase(models.Model):
+    produit = models.ForeignKey(Product, on_delete=models.PROTECT)
+    quantite = models.FloatField()
+    date = models.DateTimeField(blank=True, default=timezone.now)
+    staff = models.ForeignKey(Staff, default=1, on_delete=models.PROTECT)
+    details = models.TextField(blank=True, null=True)
+    prix_achat = models.FloatField()
 
     def __str__(self):
-        return f"{self.produit}"
-
-
-class Commande(models.Model):
-    tel = models.CharField(max_length=20, blank=True, default=0)
-    date = models.DateField(blank=True, default=timezone.now)
-    a_payer = models.FloatField(default=0, blank=True)
-    payee = models.FloatField(default=0, blank=True)
-    reste = models.FloatField(default=0, blank=True)
-
-    def save(self, *args, **kwargs):
-        self.reste = self.a_payer-self.payee
-        super(Commande, self).save(*args, **kwargs)
-
-
-class Paiement(models.Model):
-    produit = models.ForeignKey(
-        "Produit", null=True, on_delete=models.SET_NULL)
-    somme = models.PositiveIntegerField(verbose_name='somme payée', default=0)
-    date = models.DateField(blank=True, default=timezone.now)
+        return f"{self.produit.nom} par {self.staff.user.username}"
 
     def save(self, *args, **kwargs):
         produit = self.produit
-        super(Paiement, self).save(*args, **kwargs)
-        paiements = Paiement.objects.filter(
-            produit=produit).aggregate(Sum("somme"))["somme__sum"]
-        produit.payee += self.somme
-        commande.reste = produit.a_payer-paiements
+        produit.quantite += self.quantite
         produit.save()
+        super(Purchase, self).save(*args, **kwargs)
+
+    class Meta:
+        ordering = ["produit"]
+
+    def delete(self):
+        produit = self.produit
+        produit.quantite -= self.quantite
+        if(produit.quantite<0):
+            raise Exception("le stock ne peut pas tomber dans le manquant")
+        super(Vente, self).delete()
+        commande.save()
+        produit.save()
+
+class Sale(models.Model):
+    produit = models.ForeignKey(Product, on_delete=models.PROTECT)
+    quantite = models.FloatField()
+    commande = models.ForeignKey(Commande, on_delete=models.CASCADE)
+    details = models.TextField(blank=True, null=True)
+    prix = models.FloatField(editable=False, default=0)
+    total = models.FloatField(editable=False, default=0)
+
+    def save(self, *args, **kwargs):
+        self.prix = self.produit.prix_vente
+        self.total = self.quantite*self.prix
+        
+        if(not self.pk):
+            self.updateThings()
+        else:
+            raise Exception("Edition Desactivée")
+
+        if(self.produit.quantite < self.quantite):
+            raise Exception("Cette quantite n'est pas disponible en Stock")
+            
+        super(Sale, self).save(*args, **kwargs)
+
+    def updateThings(self):
+        produit = self.produit
+        produit.quantite -= self.quantite
+        produit.save()
+
+        commande = self.commande
+        commande.a_payer += self.total
+        commande.save()
+
+    def editThings(self):
+        produit = self.produit
+        produit.quantite = produit.quantite + self.old_quantite - self.quantite
+        produit.save()
+
+        commande = self.commande
+        old_somme = self.old_quantite*produit.prix_vente
+        commande.a_payer = commande.a_payer + self.total - old_somme
+        commande.save()
+    
+    def delete(self):
+        produit = self.produit
+        produit.quantite += self.quantite
+
+        commande = self.commande
+        commande.payee -= self.quantite*self.produit.prix_vente
+
+        super(Sale, self).delete()
+        commande.save()
+        produit.save()
+
+    class Meta:
+        ordering = ["produit"]
+
+class Commande(models.Model):
+    staff = models.ForeignKey(Staff, on_delete=models.PROTECT)
+    client = models.ForeignKey(Client, blank=True, null=True, on_delete=models.SET_NULL)
+    date = models.DateTimeField(blank=True, default=timezone.now)
+    a_payer = models.PositiveIntegerField(default=0, editable=False, blank=True)
+    payee = models.PositiveIntegerField(default=0, editable=False, blank=True)
+    reste = models.PositiveIntegerField(default=0, editable=False, blank=True)
+    uncommited = models.PositiveIntegerField(default=0, editable=False, blank=True)
+
+    def __str__(self):
+        return f"commande du {self.date} valant {self.a_payer}"
+
+    def save(self, *args, **kwargs):
+        self.a_payer = int(self.a_payer)
+        self.payee = int(self.payee)
+
+        if(int(self.a_payer) < self.payee):
+            self.reste = 0
+        else :
+            self.reste = self.a_payer-self.payee
+        super(Commande, self).save(*args, **kwargs)
+
+    class Meta:
+        ordering = "-pk",
+
+class Paiement(models.Model):
+    commande = models.ForeignKey(Commande, null=True, on_delete=models.SET_NULL)
+    somme = models.PositiveIntegerField(verbose_name='somme payée', default=0)
+    date = models.DateTimeField(editable=False, default=timezone.now)
+    validated = models.BooleanField(default=False, editable=False)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise Exception("Les paiements ne sont pas editables")
+        commande = self.commande
+        commande.uncommited += self.somme
+        commande.save()
+        super(Paiement, self).save(*args, **kwargs)
+
+    def validate(self, *args, **kwargs):
+        commande = self.commande
+        commande.payee += self.somme
+        commande.uncommited -= self.somme
+        self.validated = True
+        super(Paiement, self).save(*args, **kwargs)
+        commande.save()
+
+    def delete(self):
+        commande = self.commande
+        commande.payee -= somme
+        super(Paiement, self).delete()
+        commande.save()
